@@ -20,9 +20,9 @@ Concrete record of the framework/tooling decisions made in §3 of [the playbook]
 
 ## Mac lease TODOs carried from §3.7
 
-These require an actual Apple developer account / Scaleway Mac instance and can't be done from Windows:
+These require an actual Apple developer account / Scaleway Mac instance and can't be done from Windows. Full step-by-step: [mac-setup.md](mac-setup.md).
 
-- [ ] Create Sentry account, add iOS SDK once the Xcode project exists.
+- [ ] Provision first Scaleway Mac mini lease using `scripts/mac-lease-setup.sh`.
 - [ ] Xcode project scaffolding, SwiftUI screens, AVFoundation camera capture/playback.
 - [ ] Vision framework integration test (`VNDetectHumanBodyPoseRequest`).
-- [ ] Provision first Scaleway Mac mini lease using `scripts/mac-lease-setup.sh`.
+- [ ] Create Sentry account, add iOS SDK once the Xcode project exists.

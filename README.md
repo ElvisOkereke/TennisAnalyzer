@@ -4,6 +4,7 @@ Native iOS app that analyzes tennis serve mechanics from video, starting with ma
 
 Full roadmap, architecture, and rationale: [docs/tennis-serve-app-full-playbook.md](docs/tennis-serve-app-full-playbook.md).
 Concrete Phase 0 decisions: [docs/decisions.md](docs/decisions.md).
+Mac lease setup, step by step: [docs/mac-setup.md](docs/mac-setup.md).
 
 ## Status
 
