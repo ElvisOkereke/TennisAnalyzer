@@ -1,0 +1,30 @@
+# macOS / Xcode
+.DS_Store
+ios-app/build/
+ios-app/DerivedData/
+ios-app/*.xcodeproj/xcuserdata/
+ios-app/*.xcworkspace/xcuserdata/
+ios-app/Pods/
+*.xcuserstate
+
+# Python
+python/**/__pycache__/
+python/**/*.pyc
+python/.venv/
+python/.pytest_cache/
+python/.ruff_cache/
+*.egg-info/
+
+# Data / models (tracked via Git LFS or external storage later, not plain git)
+*.mlmodel
+*.mlpackage
+data/raw/
+data/labeled/
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+
+# Claude Code local settings
+.claude/settings.local.json

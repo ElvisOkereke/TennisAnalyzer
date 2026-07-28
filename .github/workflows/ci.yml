@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r python/requirements.txt
+      - run: ruff check python/
+      - run: pytest python/
+
+  # iOS build/test lane is added once the Xcode project exists (first Mac
+  # lease, playbook §3.7) — GitHub-hosted macOS runners can build/test it
+  # without needing our own Mac for CI.
