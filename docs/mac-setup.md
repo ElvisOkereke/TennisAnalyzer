@@ -57,36 +57,114 @@ You'll use two channels — SSH for everything scriptable, Screen Sharing only f
 
 ## 3. Fully-scriptable setup — run over SSH first
 
-Everything in this step needs no GUI. Run [`scripts/mac-lease-setup.sh`](../scripts/mac-lease-setup.sh) from this repo, or paste the commands directly:
+Everything in this step needs no GUI. Run [`scripts/mac-lease-setup.sh`](../scripts/mac-lease-setup.sh) from this repo (it runs the same commands below and prompts for the few pieces of input), or paste the commands one at a time and check them against the expected output.
+
+**Confirm Xcode and check its version**
+```bash
+xcodebuild -version
+```
+```
+Xcode 16.x
+Build version 16Xxxxxx
+```
+Exact version depends on whatever macOS release Scaleway currently defaults to — any recent Xcode 15/16 is fine. If instead you get `xcode-select: error: tool 'xcodebuild' requires Xcode`, the instance didn't provision Xcode correctly — worth a support ticket rather than trying to `xcode-select --install` it yourself (that only installs Command Line Tools, not full Xcode).
+
+**Accept the Xcode license**
+```bash
+sudo xcodebuild -license accept
+```
+Prompts for **your macOS account password** (not your Apple ID) — nothing is echoed back as you type, that's normal. On success it returns silently to the prompt with no output at all. If it was already accepted (possible on some images), it also returns silently — either way, no output means success here.
+
+**Run first-launch component install**
+```bash
+sudo xcodebuild -runFirstLaunch
+```
+May print a few lines like `Installing First Launch packages...` followed by package names, or print **nothing and return immediately** if Scaleway's image already has everything installed — both are fine. It should not ask you anything interactively; if it hangs, Ctrl-C and continue, it's not required for the Simulator to work.
+
+**Confirm simulator runtimes**
+```bash
+xcrun simctl list devices available
+```
+```
+== Devices ==
+-- iOS 18.x --
+    iPhone 16 Pro (XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX) (Shutdown)
+    iPhone 16 (XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX) (Shutdown)
+    ...
+-- watchOS 11.x --
+    ...
+```
+If the iOS section is missing or empty, a Simulator runtime isn't installed yet — fix it with `xcodebuild -downloadPlatform iOS` (takes a few minutes, needs network) before step 4.
+
+**Install Homebrew**
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+This is the noisiest command in the whole setup — expect a wall of `==> Downloading...` / `==> Installing...` lines over a minute or two. It will ask you to **press RETURN to continue** once near the start, and prompt for your **macOS account password** once (for `sudo` steps inside the installer). It ends with:
+```
+==> Installation successful!
+...
+==> Next steps:
+- Run these commands in your terminal to add Homebrew to your PATH:
+    echo >> /Users/<user>/.zprofile
+    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> /Users/<user>/.zprofile
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+```
+That's exactly what the next two commands below do, so you don't need to copy those lines from Homebrew's own output.
 
 ```bash
-# Confirm Xcode is present (preinstalled by Scaleway) and check its version
-xcodebuild -version
-
-# Accept the Xcode license non-interactively
-sudo xcodebuild -license accept
-
-# Install first-launch components (Simulator runtimes etc.) without the GUI wizard
-sudo xcodebuild -runFirstLaunch
-
-# Confirm simulator runtimes are ready
-xcrun simctl list devices available
-
-# Install Homebrew — Scaleway preinstalls MacPorts, but Homebrew is what
-# almost all iOS tooling docs (fastlane, swiftlint, xcodegen, etc.) assume
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 eval "$(/opt/homebrew/bin/brew shellenv)"
 echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+```
+No output from either. Sanity-check it worked with `brew --version` → `Homebrew 4.x.x`.
 
-# Git identity
+**Git identity**
+```bash
 git config --global user.name "Your Name"
 git config --global user.email "you@example.com"
-
-# GitHub CLI — fastest path to auth + clone without hand-managing a new SSH key
-brew install gh
-gh auth login          # choose: GitHub.com → HTTPS → Login with a web browser
-gh repo clone <your-github-username>/TennisAnalyzer ~/TennisAnalyzer
 ```
+No output. Verify with `git config --global --list` if you want to double check.
+
+**GitHub CLI — install, auth, clone**
+```bash
+brew install gh
+```
+Similar `==> Downloading` / `==> Installing gh` noise, ending with something like:
+```
+🍺  /opt/homebrew/Cellar/gh/2.x.x: 148 files, 38.7MB
+```
+
+```bash
+gh auth login
+```
+Fully interactive — answer the prompts:
+```
+? What account do you want to log into? GitHub.com
+? What is your preferred protocol for Git operations on this host? HTTPS
+? Authenticate Git with your GitHub credentials? Yes
+? How would you like to authenticate GitHub CLI? Login with a web browser
+
+! First copy your one-time code: XXXX-XXXX
+Press Enter to open github.com in your browser...
+```
+Copy the code, open the printed URL from **your own browser** (not necessarily on the Mac — any device works), paste the code, authorize. The terminal then finishes with:
+```
+✓ Authentication complete.
+✓ Configured git protocol
+✓ Logged in as ElvisOkereke
+```
+
+```bash
+gh repo clone ElvisOkereke/TennisAnalyzer ~/TennisAnalyzer
+```
+```
+Cloning into 'TennisAnalyzer'...
+remote: Enumerating objects: ...
+remote: Counting objects: 100% ...
+Receiving objects: 100% ...
+Resolving deltas: 100% ...
+```
+Confirm it worked with `ls ~/TennisAnalyzer` → should list `README.md`, `LICENSE`, `docs/`, `ios-app/`, `python/`, `scripts/`, `.github/`.
 
 At this point the repo is on the Mac and Xcode is fully licensed and ready — everything so far cost you a couple of minutes of billed time, not the usual first-run wait.
 
@@ -112,6 +190,12 @@ Only these steps genuinely need the screen:
    git commit -m "Add Xcode project shell"
    git push
    ```
+   `git add` prints nothing. `git commit` prints a summary like `[main abc1234] Add Xcode project shell` followed by a list of files changed/created (there will be a lot — Xcode projects generate many small files). `git push` ends with something like:
+   ```
+   To https://github.com/ElvisOkereke/TennisAnalyzer.git
+      60781a9..abc1234  main -> main
+   ```
+   If `git push` instead asks for a username/password interactively and rejects them, `gh auth login` didn't wire up git credentials — run `gh auth setup-git` and retry.
 
 ---
 
