@@ -66,7 +66,7 @@ struct ServeMarkingFlowView: View {
                     finish(contactPoints: points)
                 }
             case .results(let metrics, let feedback):
-                ServeResultsView(metrics: metrics, feedback: feedback)
+                ServeResultsView(metrics: metrics, feedback: feedback, clipURL: clipURL, provenance: .manual)
             }
         }
         .navigationTitle("Analyze Serve")

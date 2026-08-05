@@ -13,5 +13,6 @@ struct TennisAnalyzerApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(for: ServeRecord.self)
     }
 }

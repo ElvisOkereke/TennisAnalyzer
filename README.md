@@ -8,7 +8,7 @@ Mac lease setup, step by step: [docs/mac-setup.md](docs/mac-setup.md).
 
 ## Status
 
-**Phase 1 — MVP: manual mechanics.** Phase 0 (record/upload/playback app shell) is done. Phase 1 adds manual joint marking on a paused frame, a geometry engine (knee bend, elbow angle, contact-height ratio), and rule-based feedback — see the playbook's Phase 1 definition of done and [docs/decisions.md](docs/decisions.md).
+**Phase 2 — automatic mechanics.** Phase 0 (record/upload/playback) and Phase 1 (manual joint marking + geometry/feedback engine) are done and verified on-device. Phase 2 adds on-device pose detection (Vision), auto-locating the trophy/contact frames, and local history (SwiftData) — record a clip, get feedback with no manual marking, with the Phase 1 manual flow as a fallback. See the playbook's Phase 2 definition of done and [docs/decisions.md](docs/decisions.md).
 
 ## Repo layout
 

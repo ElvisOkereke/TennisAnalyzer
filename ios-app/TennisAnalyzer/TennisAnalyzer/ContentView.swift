@@ -11,6 +11,8 @@ import UIKit
 struct ContentView: View {
     @State private var isRecording = false
     @State private var playbackURL: URL?
+    @State private var showHandednessPrompt = false
+    @State private var showHandednessSettings = false
 
     private var cameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
@@ -40,23 +42,57 @@ struct ContentView: View {
                 }
 
                 ClipImportButton { url in
-                    playbackURL = url
+                    playbackURL = ClipStorage.persist(url)
+                }
+                .buttonStyle(.bordered)
+
+                NavigationLink {
+                    HistoryListView()
+                } label: {
+                    Label("History", systemImage: "clock.arrow.circlepath")
                 }
                 .buttonStyle(.bordered)
             }
             .padding()
             .navigationTitle("TennisAnalyzer")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showHandednessSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
             .fullScreenCover(isPresented: $isRecording) {
                 CameraRecorderView { url in
                     isRecording = false
                     if let url {
-                        playbackURL = url
+                        playbackURL = ClipStorage.persist(url)
                     }
                 }
                 .ignoresSafeArea()
             }
             .navigationDestination(item: $playbackURL) { url in
                 ClipPlayerView(url: url)
+            }
+            // First-run only: Phase 2's auto-detection needs to know which
+            // side is the hitting arm before it can pick the right joints.
+            .sheet(isPresented: $showHandednessPrompt) {
+                HandednessPromptView { _ in
+                    showHandednessPrompt = false
+                }
+                .interactiveDismissDisabled()
+            }
+            .sheet(isPresented: $showHandednessSettings) {
+                HandednessPromptView { _ in
+                    showHandednessSettings = false
+                }
+            }
+            .onAppear {
+                if !HandednessSettings.hasBeenSet {
+                    showHandednessPrompt = true
+                }
             }
         }
     }

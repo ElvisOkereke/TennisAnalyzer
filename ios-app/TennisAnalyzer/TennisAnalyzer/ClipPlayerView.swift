@@ -6,8 +6,8 @@
 import SwiftUI
 import AVKit
 
-/// Thin AVKit wrapper — Phase 2 replaces this with an overlay-capable player
-/// once pose/ball detection has annotations to draw on top of the video.
+/// Thin AVKit wrapper — a future overlay-capable player could draw pose/ball
+/// annotations on top of the video once there's something to draw.
 struct ClipPlayerView: View {
     let url: URL
 
@@ -16,7 +16,7 @@ struct ClipPlayerView: View {
             VideoPlayer(player: AVPlayer(url: url))
 
             NavigationLink {
-                ServeMarkingFlowView(clipURL: url)
+                AutoServeAnalysisView(clipURL: url)
             } label: {
                 Label("Analyze Serve", systemImage: "figure.tennis")
                     .frame(maxWidth: .infinity)

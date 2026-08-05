@@ -49,4 +49,27 @@ Implementation: `python/tennis_analyzer/{geometry,feedback}.py` (prototyped + un
 
 - [x] Python geometry/feedback engine prototyped and unit-tested (`python -m pytest python/tests -q`).
 - [x] Swift port of geometry/feedback engines + manual marking UI flow written.
-- [ ] Verify the full flow on a real clip in the Simulator (next Mac lease) — scrub, mark both frames, confirm metrics/feedback render sensibly. This is Phase 1's actual "stranger can do this" bar.
+- [x] Verify the full flow on a real clip in the Simulator — scrub, mark both frames, confirm metrics/feedback render sensibly (confirmed on-device via Mac lease). This satisfied Phase 1's "stranger can do this" bar.
+- [x] UI polish from real-usage feedback: frame-step buttons alongside the scrubber, pinch-zoom/pan for precise point placement, richer per-step guidance text.
+
+## Phase 2 decisions — automatic mechanics
+
+- **Pose model:** Apple Vision (`VNDetectHumanBodyPoseRequest`), per §3.2 — first-party, no bundled model.
+- **Frame decoding:** `AVAssetReader` (sequential `CVPixelBuffer` decode), not repeated `AVAssetImageGenerator.image(at:)` calls — far cheaper once every frame of a multi-second clip needs visiting.
+- **Persistence:** SwiftData, not Core Data or raw SQLite/WatermelonDB. The project's deployment target is iOS 26.5 (`project.pbxproj`), safely current for SwiftData, and it's the natural fit for a from-scratch native SwiftUI app. The playbook's "SQLite/WatermelonDB" mention predates §3.1's native-iOS decision — WatermelonDB is React Native-specific and doesn't apply here.
+- **Hitting side:** a one-time handedness setting (`HandednessSettings.swift`), not per-clip auto-detection — a reliable, reasonable one-time setup cost per §5, rather than a silent-failure risk if motion-based inference guesses wrong.
+- **Head/foot proxy joints — Vision has no head-top or toe landmark:**
+  - Foot → `ankle`: safe, since it's a lower-body skeletal joint Vision localizes from any camera angle.
+  - Head → `neck` (not `nose`): most serve-mechanics clips are filmed from behind to show full-body extension toward the net, so the face is often not visible — nose/eye/ear confidence is unreliable for exactly the common recording angle. `neck` is inferred from shoulder/torso geometry and stays reliable regardless of facing direction. `nose` is used opportunistically only when its per-frame confidence is high (front/side-angle clips).
+  - **Consequence:** because `neck` sits lower than the literal head-top, the auto-detected contact-height ratio reads on a different absolute scale than Phase 1's manual-tap ratio.
+  - [ ] Calibrate a separate contact-height-ratio threshold for auto-detected metrics against real clips — do not reuse Phase 1's `1.15` manual-tap constant.
+- **Manual flow as fallback:** `ServeMarkingFlowView` (Phase 1, unchanged) stays reachable when auto-detection fails or confidence is too low — "automatic first, manual as fallback" (§5). Reached via a "Mark Manually Instead" button, not the primary path.
+- **Clip persistence gap closed:** clips from `ClipImporter`/`CameraRecorderView` land in ephemeral temp locations; `ClipStorage.swift` copies accepted clips into `Documents/Clips/` at the point of acceptance so History entries resolve across relaunches.
+
+Implementation: `python/tennis_analyzer/phase_detector.py` (prototyped + unit-tested first), ported 1:1 to `PhaseDetector.swift`. Swift: `PoseEstimator.swift` (Vision + `AVAssetReader`), `HandednessSettings.swift`, `ClipStorage.swift`, `ServeRecord.swift` (SwiftData model), `AutoServeAnalysisView.swift` (orchestration + honest staged progress), `HistoryListView.swift`/`HistoryDetailView.swift`. `ServeResultsView.swift` extended with provenance/confidence display and history persistence (both manual and auto paths now save a `ServeRecord`).
+
+- [x] Python phase-detection heuristic prototyped and unit-tested (`python -m pytest python/tests -q`).
+- [x] Swift port of `PhaseDetector` + Vision-based `PoseEstimator` + auto-analysis UI flow + SwiftData history written.
+- [ ] Verify the full auto flow on a real clip in the Simulator (next Mac lease) — confirm pose detection finds plausible trophy/contact frames, metrics/feedback render, a `ServeRecord` appears in History after relaunching.
+- [ ] Specifically verify a **from-behind clip**: confirm `nose` confidence is low/absent as predicted and the `neck` fallback produces a plausible (if not yet threshold-validated) ratio.
+- [ ] Calibrate the auto-detection contact-height-ratio threshold against real clips (see head-proxy note above).
