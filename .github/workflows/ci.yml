@@ -16,6 +16,16 @@ jobs:
       - run: ruff check python/
       - run: pytest python/
 
-  # iOS build/test lane is added once the Xcode project exists (first Mac
-  # lease, playbook §3.7) — GitHub-hosted macOS runners can build/test it
-  # without needing our own Mac for CI.
+  ios:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -p && xcodebuild -version
+      - name: Build for Simulator
+        run: |
+          xcodebuild build \
+            -project ios-app/TennisAnalyzer/TennisAnalyzer.xcodeproj \
+            -scheme TennisAnalyzer \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO

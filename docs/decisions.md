@@ -22,7 +22,8 @@ Concrete record of the framework/tooling decisions made in §3 of [the playbook]
 
 These require an actual Apple developer account / Scaleway Mac instance and can't be done from Windows. Full step-by-step: [mac-setup.md](mac-setup.md).
 
-- [ ] Provision first Scaleway Mac mini lease using `scripts/mac-lease-setup.sh`.
-- [ ] Xcode project scaffolding, SwiftUI screens, AVFoundation camera capture/playback.
+- [x] Provision first Scaleway Mac mini lease using `scripts/mac-lease-setup.sh`.
+- [x] Xcode project scaffolding (`ios-app/TennisAnalyzer`), camera usage description set.
+- [ ] Build & run the record/upload/playback screens on the Mac to confirm they actually compile — written from Windows (can't be verified without Xcode), needs a Mac session to check.
 - [ ] Vision framework integration test (`VNDetectHumanBodyPoseRequest`).
 - [ ] Create Sentry account, add iOS SDK once the Xcode project exists.
