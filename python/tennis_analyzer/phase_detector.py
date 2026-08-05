@@ -10,6 +10,7 @@ heuristic layered on top of its output.
 
 import math
 from dataclasses import dataclass
+from itertools import pairwise
 
 from tennis_analyzer.geometry import angle_at_vertex
 
@@ -89,7 +90,7 @@ def detect_phases(frames, hitting_side, frame_duration, min_confidence=DEFAULT_M
         return None
 
     wrist_speeds = [-math.inf] * len(frames)
-    for prev_i, curr_i in zip(valid_indices, valid_indices[1:]):
+    for prev_i, curr_i in pairwise(valid_indices):
         a = frames[prev_i][wrist_joint][:2]
         b = frames[curr_i][wrist_joint][:2]
         dt = frame_duration * (curr_i - prev_i)
