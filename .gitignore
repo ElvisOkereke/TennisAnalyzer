@@ -2,8 +2,8 @@
 .DS_Store
 ios-app/build/
 ios-app/DerivedData/
-ios-app/*.xcodeproj/xcuserdata/
-ios-app/*.xcworkspace/xcuserdata/
+ios-app/**/*.xcodeproj/xcuserdata/
+ios-app/**/*.xcworkspace/xcuserdata/
 ios-app/Pods/
 *.xcuserstate
 
