@@ -24,6 +24,11 @@ enum PoseEstimator {
         let frames: [PoseFrame]
         let frameDuration: Double
         let imageSize: CGSize
+        /// Frames where `VNImageRequestHandler.perform` itself threw, distinct
+        /// from frames where Vision ran but simply found no person. Both
+        /// currently produce an empty `PoseFrame`, so this is the only way to
+        /// tell them apart in the debug report.
+        let visionErrorCount: Int
     }
 
     static func extractPoseSequence(from url: URL) async throws -> PoseSequence {
@@ -48,12 +53,17 @@ enum PoseEstimator {
         reader.startReading()
 
         var frames: [PoseFrame] = []
+        var visionErrorCount = 0
         while let sampleBuffer = output.copyNextSampleBuffer() {
             guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { continue }
 
             let request = VNDetectHumanBodyPoseRequest()
             let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: orientation, options: [:])
-            try? handler.perform([request])
+            do {
+                try handler.perform([request])
+            } catch {
+                visionErrorCount += 1
+            }
 
             guard let observation = request.results?.first else {
                 frames.append([:])
@@ -63,7 +73,12 @@ enum PoseEstimator {
         }
         reader.cancelReading()
 
-        return PoseSequence(frames: frames, frameDuration: frameDuration, imageSize: imageSize)
+        return PoseSequence(
+            frames: frames,
+            frameDuration: frameDuration,
+            imageSize: imageSize,
+            visionErrorCount: visionErrorCount
+        )
     }
 
     /// Prefers `nose` when confident (front/side-angle clips); falls back to

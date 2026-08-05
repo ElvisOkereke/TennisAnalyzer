@@ -68,6 +68,8 @@ Implementation: `python/tennis_analyzer/{geometry,feedback}.py` (prototyped + un
 
 Implementation: `python/tennis_analyzer/phase_detector.py` (prototyped + unit-tested first), ported 1:1 to `PhaseDetector.swift`. Swift: `PoseEstimator.swift` (Vision + `AVAssetReader`), `HandednessSettings.swift`, `ClipStorage.swift`, `ServeRecord.swift` (SwiftData model), `AutoServeAnalysisView.swift` (orchestration + honest staged progress), `HistoryListView.swift`/`HistoryDetailView.swift`. `ServeResultsView.swift` extended with provenance/confidence display and history persistence (both manual and auto paths now save a `ServeRecord`).
 
+- **Debug diagnostics for failed auto-detection:** since auto-detection failures previously collapsed into one generic message with no visibility into cause, `phase_detector.py`/`PhaseDetector.swift` gained `diagnose_phases`/`summarize_joints` (per-joint confidence stats + a specific failure reason instead of a bare `nil`), and `AutoServeAnalysisView` gained a copyable "Debug Info" panel covering all three failure points — including the previously-undiagnosed case where `detectPhases` succeeds but shoulder/elbow/head confidence (never checked by `PhaseDetector` itself) fails the final trophy/contact joint lookup.
+
 - [x] Python phase-detection heuristic prototyped and unit-tested (`python -m pytest python/tests -q`).
 - [x] Swift port of `PhaseDetector` + Vision-based `PoseEstimator` + auto-analysis UI flow + SwiftData history written.
 - [ ] Verify the full auto flow on a real clip in the Simulator (next Mac lease) — confirm pose detection finds plausible trophy/contact frames, metrics/feedback render, a `ServeRecord` appears in History after relaunching.

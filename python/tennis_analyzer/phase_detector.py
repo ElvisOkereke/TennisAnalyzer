@@ -24,6 +24,24 @@ class PhaseDetectionResult:
     contact_frame_index: int
 
 
+@dataclass
+class JointStats:
+    frames_present: int
+    frames_confident: int
+    average_confidence: float
+    min_confidence: float
+    max_confidence: float
+
+
+@dataclass
+class PhaseDetectionDiagnostics:
+    result: PhaseDetectionResult | None
+    failure_reason: str | None
+    total_frames: int
+    valid_frame_count: int
+    joint_stats: dict[str, JointStats]
+
+
 def speed(a, b, dt):
     """Finite-difference speed between two (x, y) points over dt seconds.
 
@@ -65,17 +83,46 @@ def _is_valid(frame, joint_names, min_confidence):
     return True
 
 
-def detect_phases(frames, hitting_side, frame_duration, min_confidence=DEFAULT_MIN_CONFIDENCE):
-    """Auto-locate the trophy and contact frame indices.
+def summarize_joints(frames, min_confidence=DEFAULT_MIN_CONFIDENCE):
+    """Per-joint confidence stats across every joint name seen in `frames`.
 
-    `frames` is a list of per-frame joint dicts: joint name -> (x, y,
-    confidence), one entry per decoded video frame, in image-pixel space.
-    `hitting_side` is "left" or "right" (from the user's handedness
-    setting). `frame_duration` is the time between frames, in seconds.
-
-    Returns None if there aren't enough confidently-tracked frames to make
-    a reliable call — callers should fall back to manual marking.
+    Covers all joints present in the data, not just the hitting-side
+    required ones — this is what surfaces a handedness-setting mismatch
+    (the real wrist tracked confidently on the *other* side) or a joint
+    that drops out during a specific phase of the motion.
     """
+    joint_names = sorted({name for frame in frames for name in frame})
+    stats = {}
+    for name in joint_names:
+        confidences = [frame[name][2] for frame in frames if name in frame]
+        if not confidences:
+            continue
+        stats[name] = JointStats(
+            frames_present=len(confidences),
+            frames_confident=sum(1 for c in confidences if c >= min_confidence),
+            average_confidence=sum(confidences) / len(confidences),
+            min_confidence=min(confidences),
+            max_confidence=max(confidences),
+        )
+    return stats
+
+
+def diagnose_phases(frames, hitting_side, frame_duration, min_confidence=DEFAULT_MIN_CONFIDENCE):
+    """Like `detect_phases`, but always returns a populated diagnostics
+    record — including a specific human-readable `failure_reason` at
+    whichever gate rejected the sequence, instead of a bare None.
+    """
+    joint_stats = summarize_joints(frames, min_confidence)
+
+    def diagnostics(result=None, failure_reason=None, valid_frame_count=0):
+        return PhaseDetectionDiagnostics(
+            result=result,
+            failure_reason=failure_reason,
+            total_frames=len(frames),
+            valid_frame_count=valid_frame_count,
+            joint_stats=joint_stats,
+        )
+
     wrist_joint = f"{hitting_side}_wrist"
     hip_joint = f"{hitting_side}_hip"
     knee_joint = f"{hitting_side}_knee"
@@ -87,7 +134,14 @@ def detect_phases(frames, hitting_side, frame_duration, min_confidence=DEFAULT_M
         if _is_valid(frame, required_joints, min_confidence)
     ]
     if len(valid_indices) < MIN_VALID_FRAMES:
-        return None
+        return diagnostics(
+            failure_reason=(
+                f"only {len(valid_indices)} of {len(frames)} frames had all required "
+                f"{hitting_side}-side joints ({', '.join(required_joints)}) tracked above "
+                f"{min_confidence} confidence (need >= {MIN_VALID_FRAMES})"
+            ),
+            valid_frame_count=len(valid_indices),
+        )
 
     wrist_speeds = [-math.inf] * len(frames)
     for prev_i, curr_i in pairwise(valid_indices):
@@ -97,13 +151,26 @@ def detect_phases(frames, hitting_side, frame_duration, min_confidence=DEFAULT_M
         wrist_speeds[curr_i] = speed(a, b, dt)
 
     if all(s == -math.inf for s in wrist_speeds):
-        return None
+        return diagnostics(
+            failure_reason=(
+                f"could not compute a wrist speed for any frame ({len(valid_indices)} "
+                "valid frame(s) found, but none formed a consecutive pair to measure "
+                "movement between)"
+            ),
+            valid_frame_count=len(valid_indices),
+        )
 
     contact_index = detect_contact_frame(wrist_speeds)
 
     valid_before_contact = {i for i in valid_indices if i < contact_index}
     if not valid_before_contact:
-        return None
+        return diagnostics(
+            failure_reason=(
+                f"no confidently-tracked frame occurs before the detected contact frame "
+                f"(index {contact_index})"
+            ),
+            valid_frame_count=len(valid_indices),
+        )
 
     knee_angles = [math.inf] * len(frames)
     for i in valid_before_contact:
@@ -113,7 +180,25 @@ def detect_phases(frames, hitting_side, frame_duration, min_confidence=DEFAULT_M
 
     trophy_index = detect_trophy_frame(knee_angles, contact_index)
 
-    return PhaseDetectionResult(
-        trophy_frame_index=trophy_index,
-        contact_frame_index=contact_index,
+    return diagnostics(
+        result=PhaseDetectionResult(
+            trophy_frame_index=trophy_index,
+            contact_frame_index=contact_index,
+        ),
+        valid_frame_count=len(valid_indices),
     )
+
+
+def detect_phases(frames, hitting_side, frame_duration, min_confidence=DEFAULT_MIN_CONFIDENCE):
+    """Auto-locate the trophy and contact frame indices.
+
+    `frames` is a list of per-frame joint dicts: joint name -> (x, y,
+    confidence), one entry per decoded video frame, in image-pixel space.
+    `hitting_side` is "left" or "right" (from the user's handedness
+    setting). `frame_duration` is the time between frames, in seconds.
+
+    Returns None if there aren't enough confidently-tracked frames to make
+    a reliable call — callers should fall back to manual marking. Use
+    `diagnose_phases` for the reason why.
+    """
+    return diagnose_phases(frames, hitting_side, frame_duration, min_confidence).result
