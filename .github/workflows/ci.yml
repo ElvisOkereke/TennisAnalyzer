@@ -27,5 +27,5 @@ jobs:
           xcodebuild build \
             -project ios-app/TennisAnalyzer/TennisAnalyzer.xcodeproj \
             -scheme TennisAnalyzer \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination 'platform=iOS Simulator,name=Any iOS Simulator Device' \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
