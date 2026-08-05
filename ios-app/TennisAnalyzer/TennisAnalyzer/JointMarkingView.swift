@@ -5,46 +5,59 @@ import SwiftUI
 ///
 /// Points are emitted in the source image's pixel space (not view space),
 /// so they can feed straight into `GeometryEngine` regardless of how the
-/// image is scaled/letterboxed on screen.
+/// image is scaled/letterboxed or zoomed/panned on screen.
 struct JointMarkingView: View {
     let image: UIImage
     let labels: [String]
+    var labelGuidance: [String: String] = [:]
     var onComplete: ([String: CGPoint]) -> Void
 
     @State private var placedPoints: [CGPoint] = []
+
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+    @State private var isZooming = false
+
+    private static let minScale: CGFloat = 1.0
+    private static let maxScale: CGFloat = 5.0
+    private static let tapMovementTolerance: CGFloat = 6
 
     private var currentLabel: String? {
         placedPoints.count < labels.count ? labels[placedPoints.count] : nil
     }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             if let currentLabel {
                 Text("Tap the \(currentLabel)")
                     .font(.headline)
+                if let guidance = labelGuidance[currentLabel] {
+                    Text(guidance)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+                Text("Pinch to zoom in for more precise placement, drag to pan.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             } else {
                 Text("All points placed")
                     .font(.headline)
             }
 
             GeometryReader { proxy in
-                let displayRect = Self.displayRect(for: image, in: proxy.size)
+                let containerSize = proxy.size
+                let containerCenter = CGPoint(x: containerSize.width / 2, y: containerSize.height / 2)
+                let displayRect = Self.displayRect(for: image, in: containerSize)
 
                 ZStack {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .contentShape(Rectangle())
-                        .onTapGesture { location in
-                            guard currentLabel != nil else { return }
-                            guard let imagePoint = Self.imagePoint(
-                                fromViewPoint: location,
-                                displayRect: displayRect,
-                                imageSize: image.size
-                            ) else { return }
-                            placedPoints.append(imagePoint)
-                        }
+                        .frame(width: containerSize.width, height: containerSize.height)
 
                     ForEach(Array(placedPoints.enumerated()), id: \.offset) { index, point in
                         let viewPoint = Self.viewPoint(
@@ -56,10 +69,69 @@ struct JointMarkingView: View {
                             .position(viewPoint)
                     }
                 }
+                .scaleEffect(scale, anchor: .center)
+                .offset(offset)
+                .frame(width: containerSize.width, height: containerSize.height)
+                .contentShape(Rectangle())
+                .clipped()
+                .gesture(
+                    SimultaneousGesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                isZooming = true
+                                scale = min(max(lastScale * value, Self.minScale), Self.maxScale)
+                            }
+                            .onEnded { _ in
+                                isZooming = false
+                                lastScale = scale
+                                if scale <= Self.minScale {
+                                    offset = .zero
+                                    lastOffset = .zero
+                                } else {
+                                    offset = Self.clampedOffset(offset, scale: scale, containerSize: containerSize)
+                                    lastOffset = offset
+                                }
+                            },
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                guard scale > Self.minScale, !isZooming else { return }
+                                offset = Self.clampedOffset(
+                                    CGSize(
+                                        width: lastOffset.width + value.translation.width,
+                                        height: lastOffset.height + value.translation.height
+                                    ),
+                                    scale: scale,
+                                    containerSize: containerSize
+                                )
+                            }
+                            .onEnded { value in
+                                guard !isZooming else { return }
+                                let dragDistance = hypot(value.translation.width, value.translation.height)
+                                if dragDistance < Self.tapMovementTolerance {
+                                    handleTap(
+                                        at: value.location,
+                                        containerCenter: containerCenter,
+                                        displayRect: displayRect
+                                    )
+                                } else if scale > Self.minScale {
+                                    lastOffset = offset
+                                }
+                            }
+                    )
+                )
             }
             .aspectRatio(image.size, contentMode: .fit)
 
             HStack {
+                Button {
+                    withAnimation { resetZoom() }
+                } label: {
+                    Image(systemName: "arrow.down.right.and.arrow.up.left")
+                }
+                .disabled(scale <= Self.minScale)
+
+                Spacer()
+
                 Button("Back") {
                     guard !placedPoints.isEmpty else { return }
                     placedPoints.removeLast()
@@ -81,6 +153,43 @@ struct JointMarkingView: View {
             .padding(.horizontal)
         }
         .padding()
+    }
+
+    private func resetZoom() {
+        scale = Self.minScale
+        lastScale = Self.minScale
+        offset = .zero
+        lastOffset = .zero
+    }
+
+    private func handleTap(at screenPoint: CGPoint, containerCenter: CGPoint, displayRect: CGRect) {
+        guard currentLabel != nil else { return }
+
+        // Invert the scaleEffect(anchor: .center) + offset transform applied
+        // to the content, to recover the tap location in the content's own
+        // (unscaled) coordinate space.
+        let contentPoint = CGPoint(
+            x: containerCenter.x + (screenPoint.x - containerCenter.x - offset.width) / scale,
+            y: containerCenter.y + (screenPoint.y - containerCenter.y - offset.height) / scale
+        )
+
+        guard let imagePoint = Self.imagePoint(
+            fromViewPoint: contentPoint,
+            displayRect: displayRect,
+            imageSize: image.size
+        ) else { return }
+
+        placedPoints.append(imagePoint)
+    }
+
+    /// Keeps the zoomed content from panning further than its edges.
+    private static func clampedOffset(_ proposed: CGSize, scale: CGFloat, containerSize: CGSize) -> CGSize {
+        let maxOffsetX = containerSize.width * (scale - 1) / 2
+        let maxOffsetY = containerSize.height * (scale - 1) / 2
+        return CGSize(
+            width: min(max(proposed.width, -maxOffsetX), maxOffsetX),
+            height: min(max(proposed.height, -maxOffsetY), maxOffsetY)
+        )
     }
 
     /// The rect (within a container of `containerSize`) that an

@@ -8,6 +8,20 @@ enum FrameExtractor {
         return (try? await asset.load(.duration)) ?? .zero
     }
 
+    /// Duration of a single video frame, in seconds, derived from the
+    /// clip's actual frame rate — falls back to 1/30s if unavailable.
+    static func frameDuration(of url: URL) async -> Double {
+        let asset = AVURLAsset(url: url)
+        guard
+            let track = try? await asset.loadTracks(withMediaType: .video).first,
+            let frameRate = try? await track.load(.nominalFrameRate),
+            frameRate > 0
+        else {
+            return 1.0 / 30.0
+        }
+        return 1.0 / Double(frameRate)
+    }
+
     static func image(from url: URL, at time: CMTime) async -> UIImage? {
         let asset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)

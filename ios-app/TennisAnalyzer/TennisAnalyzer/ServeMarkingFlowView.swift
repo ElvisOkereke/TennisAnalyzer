@@ -25,20 +25,44 @@ struct ServeMarkingFlowView: View {
         Group {
             switch step {
             case .scrubTrophy:
-                FrameScrubberView(clipURL: clipURL, instructions: "Scrub to the trophy position (racket up, knees bent), then continue.") { image in
+                FrameScrubberView(
+                    clipURL: clipURL,
+                    instructions: "Find the trophy position: racket up, tossing arm extended, hitting-side knee and elbow bent the most, just before the upward swing into the ball. Drag the slider to get close, then use the ◀︎ ▶︎ buttons to step one frame at a time to the exact spot."
+                ) { image in
                     step = .markTrophy(image)
                 }
             case .markTrophy(let image):
-                JointMarkingView(image: image, labels: Self.trophyLabels) { points in
+                JointMarkingView(
+                    image: image,
+                    labels: Self.trophyLabels,
+                    labelGuidance: [
+                        "Hip": "Tap your hitting-side hip joint.",
+                        "Knee": "Tap your hitting-side knee joint.",
+                        "Ankle": "Tap your hitting-side ankle."
+                    ]
+                ) { points in
                     trophyPoints = points
                     step = .scrubContact
                 }
             case .scrubContact:
-                FrameScrubberView(clipURL: clipURL, instructions: "Scrub to the moment of contact with the ball, then continue.") { image in
+                FrameScrubberView(
+                    clipURL: clipURL,
+                    instructions: "Find the contact frame: the exact instant the racket strings touch the ball. If no single frame looks perfectly right, pick the closest one — use the ◀︎ ▶︎ buttons for frame-accurate control."
+                ) { image in
                     step = .markContact(image)
                 }
             case .markContact(let image):
-                JointMarkingView(image: image, labels: Self.contactLabels) { points in
+                JointMarkingView(
+                    image: image,
+                    labels: Self.contactLabels,
+                    labelGuidance: [
+                        "Shoulder": "Tap your hitting-arm shoulder.",
+                        "Elbow": "Tap your hitting-arm elbow.",
+                        "Wrist": "Tap your hitting-arm wrist, at the racket hand.",
+                        "Head": "Tap the top of your head.",
+                        "Foot": "Tap whichever foot is touching (or closest to) the ground."
+                    ]
+                ) { points in
                     finish(contactPoints: points)
                 }
             case .results(let metrics, let feedback):
@@ -95,6 +119,7 @@ private struct FrameScrubberView: View {
     var onConfirm: (UIImage) -> Void
 
     @State private var duration: Double = 0
+    @State private var frameDuration: Double = 1.0 / 30.0
     @State private var currentTime: Double = 0
     @State private var previewImage: UIImage?
     @State private var isLoading = true
@@ -118,10 +143,32 @@ private struct FrameScrubberView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            Slider(value: $currentTime, in: 0...max(duration, 0.01)) { editing in
-                if !editing { loadPreview() }
+            HStack(spacing: 20) {
+                Button {
+                    step(by: -frameDuration)
+                } label: {
+                    Image(systemName: "chevron.left.circle.fill")
+                        .font(.title)
+                }
+                .disabled(previewImage == nil || currentTime <= 0)
+
+                Slider(value: $currentTime, in: 0...max(duration, 0.01)) { editing in
+                    if !editing { loadPreview() }
+                }
+
+                Button {
+                    step(by: frameDuration)
+                } label: {
+                    Image(systemName: "chevron.right.circle.fill")
+                        .font(.title)
+                }
+                .disabled(previewImage == nil || currentTime >= duration)
             }
             .padding(.horizontal)
+
+            Text("Use ◀︎ ▶︎ to move one video frame at a time for pinpoint accuracy.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             Button("Use This Frame") {
                 if let previewImage {
@@ -135,9 +182,15 @@ private struct FrameScrubberView: View {
         .task {
             let assetDuration = await FrameExtractor.duration(of: clipURL)
             duration = assetDuration.seconds.isFinite ? assetDuration.seconds : 0
+            frameDuration = await FrameExtractor.frameDuration(of: clipURL)
             await loadPreviewAsync()
             isLoading = false
         }
+    }
+
+    private func step(by delta: Double) {
+        currentTime = min(max(currentTime + delta, 0), duration)
+        loadPreview()
     }
 
     private func loadPreview() {
