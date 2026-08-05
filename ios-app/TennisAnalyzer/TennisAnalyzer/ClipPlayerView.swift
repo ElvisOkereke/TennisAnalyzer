@@ -12,8 +12,19 @@ struct ClipPlayerView: View {
     let url: URL
 
     var body: some View {
-        VideoPlayer(player: AVPlayer(url: url))
-            .navigationTitle("Clip")
-            .navigationBarTitleDisplayMode(.inline)
+        VStack(spacing: 0) {
+            VideoPlayer(player: AVPlayer(url: url))
+
+            NavigationLink {
+                ServeMarkingFlowView(clipURL: url)
+            } label: {
+                Label("Analyze Serve", systemImage: "figure.tennis")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .padding()
+        }
+        .navigationTitle("Clip")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

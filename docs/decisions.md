@@ -29,3 +29,24 @@ These require an actual Apple developer account / Scaleway Mac instance and can'
 - [ ] Verify live camera capture on a real device — deliberately deferred (2026-08-05): the leased Mac can't be USB-paired with a phone it never physically touches, so this needs either a $99/yr Developer Program + TestFlight enrollment (moved up from Phase 6) or one-time local Mac access. Not required for Phase 0 per the playbook (§5, allows Simulator).
 - [ ] Vision framework integration test (`VNDetectHumanBodyPoseRequest`) — this is Phase 1/2 scope, not blocking Phase 0.
 - [ ] Create Sentry account, add iOS SDK once the Xcode project exists.
+
+## Phase 1 decisions — manual mechanics
+
+Point schema and thresholds aren't pinned down by the playbook itself (it references an "earlier plan" not present in this repo) — these are starting choices, to be revalidated against real footage per §10's ground-truth comparison before being treated as final.
+
+**Point schema** (two paused frames, hitting-side joints only):
+- Trophy frame: Hip → Knee → Ankle → knee bend angle (angle at the knee vertex).
+- Contact frame: Shoulder → Elbow → Wrist → Head-top → Foot/ground → elbow angle (angle at the elbow vertex) and contact-height ratio = `(foot_y − wrist_y) / (foot_y − head_y)` in image-pixel space (no camera calibration needed — that's Phase 3b).
+
+**Starting thresholds** (estimates, tune later):
+- [ ] Validate thresholds against real footage (§10 ground-truth comparison) — currently unvalidated estimates:
+  - Knee bend > 160° → "bend your knees more for a stronger leg drive."
+  - Elbow angle < 150° at contact → "extend your arm more at contact for full reach."
+  - Contact-height ratio < 1.15 → "try tossing higher / extending fully at contact."
+  - Feedback capped at 3 items; a positive message shows if nothing trips.
+
+Implementation: `python/tennis_analyzer/{geometry,feedback}.py` (prototyped + unit-tested first, per §3/§10), ported 1:1 to `GeometryEngine.swift`/`FeedbackEngine.swift`. UI flow: `FrameExtractor.swift`, `JointMarkingView.swift`, `ServeMarkingFlowView.swift`, `ServeResultsView.swift`, wired in via an "Analyze Serve" button on `ClipPlayerView.swift`.
+
+- [x] Python geometry/feedback engine prototyped and unit-tested (`python -m pytest python/tests -q`).
+- [x] Swift port of geometry/feedback engines + manual marking UI flow written.
+- [ ] Verify the full flow on a real clip in the Simulator (next Mac lease) — scrub, mark both frames, confirm metrics/feedback render sensibly. This is Phase 1's actual "stranger can do this" bar.

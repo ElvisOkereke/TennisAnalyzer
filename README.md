@@ -8,7 +8,7 @@ Mac lease setup, step by step: [docs/mac-setup.md](docs/mac-setup.md).
 
 ## Status
 
-**Phase 0 — Foundations.** No app shell yet. See the playbook's Phase 0 definition of done.
+**Phase 1 — MVP: manual mechanics.** Phase 0 (record/upload/playback app shell) is done. Phase 1 adds manual joint marking on a paused frame, a geometry engine (knee bend, elbow angle, contact-height ratio), and rule-based feedback — see the playbook's Phase 1 definition of done and [docs/decisions.md](docs/decisions.md).
 
 ## Repo layout
 
