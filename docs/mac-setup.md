@@ -203,7 +203,13 @@ Only these steps genuinely need the screen:
 
 The Simulator has no real camera — it can only import existing photos/video into its Photos app, not capture live video. That's sufficient to confirm the app shell and playback wiring compile and run (Phase 0's definition of done explicitly allows Simulator for this reason).
 
-Testing **actual** camera capture needs a physical iPhone. Because the Mac mini is remote cloud hardware, you can't plug an iPhone into it over USB, and Xcode's wireless device pairing needs the iPhone and Mac on the same network — which a cloud Mac isn't, by default. Don't try to solve this in Phase 0; it's worth a deliberate look (e.g. a VPN bridging your phone's network to the Mac mini, or just doing real-device verification during a differently-provisioned session) once you're actually building the camera capture screen, not before.
+Testing **actual** camera capture needs a physical iPhone, and there's a hard constraint here, not just an inconvenient one: Xcode's device pairing/trust handshake is USB-based even for later wireless debugging — a device that has never been physically connected via cable can't be wirelessly paired, full stop. A VPN bridging the phone's network to the Mac mini gives IP connectivity but does **not** solve this; it was wrongly floated here as an option and doesn't actually work.
+
+That leaves two real options once real-device testing is wanted:
+1. **Enroll in the Apple Developer Program ($99/yr) and use TestFlight.** This is the only path that works with a fully-remote Mac — TestFlight installs happen entirely over the internet, no USB/local-network pairing ever needed. This is the same enrollment originally slated for Phase 6 (App Store/TestFlight); doing it earlier is a cost/timing tradeoff, not a technical requirement.
+2. **One-time USB pairing on a different, physically-accessible Mac** (yours, borrowed, a library/coworking space) — but note this ties future real-device debugging to *that* Mac, not the Scaleway lease.
+
+Phase 0's definition of done explicitly allows Simulator-only verification (seed a clip via `xcrun simctl addmedia`, confirm playback), so don't block on this — it's an opportunistic follow-up, not a Phase 0 requirement.
 
 ---
 

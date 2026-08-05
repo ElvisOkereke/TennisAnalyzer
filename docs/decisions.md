@@ -24,6 +24,8 @@ These require an actual Apple developer account / Scaleway Mac instance and can'
 
 - [x] Provision first Scaleway Mac mini lease using `scripts/mac-lease-setup.sh`.
 - [x] Xcode project scaffolding (`ios-app/TennisAnalyzer`), camera usage description set.
-- [ ] Build & run the record/upload/playback screens on the Mac to confirm they actually compile — written from Windows (can't be verified without Xcode), needs a Mac session to check.
-- [ ] Vision framework integration test (`VNDetectHumanBodyPoseRequest`).
+- [x] Confirm the record/upload/playback screens compile — verified by CI (`ios` job in `ci.yml`), building for Simulator on every push.
+- [x] Run the app in Simulator and confirm Upload Clip → Playback works end-to-end (verified 2026-08-05, via `xcrun simctl addmedia` to seed a clip since the Simulator has no camera). This satisfies Phase 0's definition of done.
+- [ ] Verify live camera capture on a real device — deliberately deferred (2026-08-05): the leased Mac can't be USB-paired with a phone it never physically touches, so this needs either a $99/yr Developer Program + TestFlight enrollment (moved up from Phase 6) or one-time local Mac access. Not required for Phase 0 per the playbook (§5, allows Simulator).
+- [ ] Vision framework integration test (`VNDetectHumanBodyPoseRequest`) — this is Phase 1/2 scope, not blocking Phase 0.
 - [ ] Create Sentry account, add iOS SDK once the Xcode project exists.
